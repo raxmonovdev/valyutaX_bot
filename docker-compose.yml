@@ -1,0 +1,41 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-currency_bot}
+      MYSQL_USER: ${MYSQL_USER:-currency}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-currency_pass}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+
+  bot:
+    build: .
+    env_file:
+      - .env
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN:-}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-currency_bot}
+      MYSQL_USER: ${MYSQL_USER:-currency}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-currency_pass}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-600}
+      API_TIMEOUT: ${API_TIMEOUT:-10}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
